@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>移动端VR</title>
+  <style>
+    *{
+      margin: 0;
+      padding: 0;
+    }
+    body,html{
+      width: 100%;
+      height: 100%;
+    }
+    #view{
+      width: 600px;
+      height: 600px;
+      margin: 0 auto;
+      position: relative;
+    }
+    /* 这三个div是一个点，设置中心 */
+    #stage,#control,#box{
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      /* 	子元素将保留其 3D 位置。 */
+      transform-style: preserve-3d;
+    }
+    #stage{
+      /* 元素距离视图的距离 */
+      perspective: 1000px;
+    }
+    #control{
+      transform: translateZ(-200px);
+    }
+    #box{
+      line-height: 200px;
+      color: white;
+      font-size: 60px;
+      /* 动画 */
+      animation: 10s rotate linear infinite ;
+    }
+    #box>div{
+      position: absolute;
+      left: -100px;
+      top: -100px;
+      width: 200px;
+      height: 200px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+      text-align: center;
+      opacity: .6;
+      /* 和父级角度相差 超过 90 deg 的面消失，实现内饰 */
+      backface-visibility: hidden;
+    }
+    /* 各个面设置 */
+    #box div:nth-child(1) {
+      transform: rotateY(0deg) translateZ(-100px);
+      background: blue;
+    }
+    #box div:nth-child(2) {
+      transform: rotateY(-90deg) translateZ(-100px);
+      background: red;
+    }
+    #box div:nth-child(3) {
+      transform: rotateY(-180deg) translateZ(-100px);
+      background: blueviolet;
+    }
+    #box div:nth-child(4) {
+      transform: rotateY(-270deg) translateZ(-100px);
+      background: grey;
+    }
+    #box div:nth-child(5) {
+      transform: rotateX(-90deg) translateZ(-100px);
+      background: green;
+    }
+    #box div:nth-child(6) {
+      transform: rotateX(90deg) translateZ(-100px);
+      background: orange;
+    }
+    @keyframes rotate {
+      0% {
+        transform: rotateY(0deg);
+      }
+      100% {
+        transform: rotateY(360deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 用作视图位置 -->
+  <div id="view">
+    <!-- 视图景视化 -->
+    <div id="stage">
+      <!-- 进入内饰 -->
+      <div id="control">
+        <div id="box">
+          <div>1</div>
+          <div>2</div>
+          <div>3</div>
+          <div>4</div>
+          <div>5</div>
+          <div>6</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
