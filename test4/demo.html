@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>min Vue</title>
+</head>
+<body>
+  <div id="app">
+    <h2>{{ count }}</h2>
+  </div>
+</body>
+<script>
+  // 设置对象属性监听。如果值是对象，继续往下查询
+  function defineReactive(obj, key, val){
+    observe(val)
+    Object.defineProperty(obj, key, {
+      get(){
+        console.log(`get ${ key }:${ val }`);
+        return val;
+      },
+      set(newVal){
+        if(newVal !== val){
+          // 设置的新值是对象的情况
+          observe(newVal)
+          console.log(`set ${key}:${newVal}`)
+          val = newVal;
+        }
+      }
+    })
+  }
+  
+  // 遍历对象，实现监听
+  function observe(obj){
+    if(typeof obj !== 'object' || obj == null){
+      return;
+    }
+    new Observe(obj)
+    
+  }
+  // 新增属性
+  function set(obj, key, val){
+    defineReactive(obj, key, val);
+  }
+  // $data代理，vue.$data.xxx实现为vue.xxx
+  function proxy(vm, keyValue){
+    Object.keys(vm[keyValue]).forEach(key => {
+      Object.defineProperty(vm, key, {
+        get(){
+          return vm[keyValue][key];
+        },
+        set(newValue){
+          vm[keyValue][key] = newValue;
+        }
+      })
+    })
+  }
+  class Vue {
+    constructor(options){
+      this.$options = options;
+      this.$data = options.data;
+      observe(this.$data)
+      proxy(this, '$data')
+      new Compile(options.el,options.data)
+    }
+  }
+  // 执⾏数据响应化（分辨数据是对象还是数组）
+  class Observe {
+    constructor(obj){
+      this.obj = obj;
+      this.walk(obj);
+    }
+    walk(obj){
+      Object.keys(obj).forEach(key => {
+        defineReactive(obj, key, obj[key]);
+      })
+    }
+  }
+  // 初始化视图
+  class Compile {
+    constructor(el, vm){
+      this.$vm = vm;
+      this.$el = document.querySelector(el);
+      if(this.$el){
+        this.compile(this.$el)
+      }
+    }
+    compile(el){
+      const childNodes = el.childNodes;
+      Array.from(childNodes).forEach(node => {
+        if(this.isElement(node)){
+          console.log('编译元素' + node.nodeName)
+        }else if(this.isInterpolation(node)){
+          console.log("编译插值文本" + node.textContent);
+          this.compileText(node)
+        }
+        if(node.childNodes && node.childNodes.length > 0 ){
+          this.compile(node)
+        }
+      })
+    }
+    isElement(node){
+      return node.nodeType == 1;
+    }
+    isInterpolation(node){
+      return node.nodeType == 3 && /\{\{(.*)\}\}/.test(node.textContent);
+    }
+    compileText(node){
+      console.log(RegExp.$1);
+      node.textContent = this.$vm[RegExp.$1];
+    }
+  }
+
+  const app = new Vue({
+    el: "#app",
+    data: {
+      count : 1
+    }
+  })
+  app.count++
+  app.count++
+  // setInterval(()=>{
+  //   app.count++
+  // },1000)
+</script>
+</html>
