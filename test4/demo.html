@@ -4,16 +4,18 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>min Vue</title>
+  <title>min Vue2</title>
 </head>
 <body>
   <div id="app">
     <h2>{{ count }}</h2>
+    <h2 v-text="count"></h2>
   </div>
 </body>
 <script>
-  // 设置对象属性监听。如果值是对象，继续往下查询
+  // 监听属性(get、set)
   function defineReactive(obj, key, val){
+    // val是对象递归处理
     observe(val)
     Object.defineProperty(obj, key, {
       get(){
@@ -22,24 +24,23 @@
       },
       set(newVal){
         if(newVal !== val){
-          // 设置的新值是对象的情况
+          // 设置的新值是对象，需要递归对这个对象实现监听
           observe(newVal)
-          console.log(`set ${key}:${newVal}`)
+          console.log(`set ${ key }:${ newVal }`)
           val = newVal;
         }
       }
     })
   }
-  
-  // 遍历对象，实现监听
+
   function observe(obj){
     if(typeof obj !== 'object' || obj == null){
       return;
     }
+    // 遍历对象key，实现监听
     new Observe(obj)
-    
   }
-  // 新增属性
+  // 对象设置新的属性
   function set(obj, key, val){
     defineReactive(obj, key, val);
   }
@@ -62,14 +63,20 @@
       this.$data = options.data;
       observe(this.$data)
       proxy(this, '$data')
-      new Compile(options.el,options.data)
+      new Compile(options.el, this)
     }
   }
-  // 执⾏数据响应化（分辨数据是对象还是数组）
+  // 执⾏数据响应化（遍历对象key，实现监听）
   class Observe {
     constructor(obj){
       this.obj = obj;
-      this.walk(obj);
+      if(Array.isArray(obj)){
+        // 数组响应
+
+      }else{
+        // 对象响应处理
+        this.walk(obj);
+      }
     }
     walk(obj){
       Object.keys(obj).forEach(key => {
@@ -77,7 +84,7 @@
       })
     }
   }
-  // 初始化视图
+  // 编译模板中vue模板特殊语法，初始化视图、更新视图
   class Compile {
     constructor(el, vm){
       this.$vm = vm;
@@ -91,6 +98,11 @@
       Array.from(childNodes).forEach(node => {
         if(this.isElement(node)){
           console.log('编译元素' + node.nodeName)
+          this.compileElement(node);
+          // 判断是否还有子元素
+          if(node.childNodes.length > 0){
+            this.compile(node)
+          }
         }else if(this.isInterpolation(node)){
           console.log("编译插值文本" + node.textContent);
           this.compileText(node)
@@ -101,27 +113,54 @@
       })
     }
     isElement(node){
-      return node.nodeType == 1;
+      return node.nodeType === 1;
     }
+    // {{xxx}}
     isInterpolation(node){
-      return node.nodeType == 3 && /\{\{(.*)\}\}/.test(node.textContent);
+      return node.nodeType === 3 && /\{\{(.*)\}\}/.test(node.textContent);
     }
     compileText(node){
-      console.log(RegExp.$1);
+      // console.log(RegExp.$1);
       node.textContent = this.$vm[RegExp.$1];
     }
+    compileElement(node){
+      const attrs = node.attributes;
+      Array.from(attrs).forEach(attr => {
+        const attrName = attr.name;
+        const exp = attr.value;
+        // 判断是否为指令
+        if(this.isDir(attrName)){
+          const dir = attrName.substring(2);
+          this[dir] && this[dir](node, exp)
+        }
+      })
+    }
+    isDir(name){
+      return name.startsWith('v-')
+    }
+    text(node, exp){
+      node.textContent = this.$vm[exp]
+    }
   }
-
+  // 负责dom更新
+  class Watcher{
+    constructor(vm, key, updater){
+      this.vm = vm;
+      this.key = key;
+      this.update = updater;
+    }
+    update(){
+      this.updater.call(this.vm, this.vm[this.key]);
+    }
+  }
   const app = new Vue({
     el: "#app",
     data: {
       count : 1
     }
   })
-  app.count++
-  app.count++
-  // setInterval(()=>{
-  //   app.count++
-  // },1000)
+  setInterval(()=>{
+    app.count++
+  },1000)
 </script>
 </html>
