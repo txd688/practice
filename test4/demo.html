@@ -8,34 +8,61 @@
 </head>
 <body>
   <div id="app">
-    <h2>{{ count }}</h2>
+    <h2 @click="onClick">{{count}}</h2>
     <h2 v-text="count"></h2>
+    <h2 v-html="des"></h2>
+    <input type="text" v-model="count">
   </div>
 </body>
 <script>
-  // 监听属性(get、set)
+  const orginalProto = Array.prototype;
+  // 拷贝
+  const arrayProto = Object.create(orginalProto);
+  ['push', 'pop', 'shift', 'unshift'].forEach(method =>{
+    arrayProto[method] = function(){
+      orginalProto[method].apply(this, arguments);
+      console.log('Array set ' + method);
+    }
+  })
+  // 对象监听属性(get、set)
   function defineReactive(obj, key, val){
     // val是对象递归处理
     observe(val)
+    const dep = new Dep();
     Object.defineProperty(obj, key, {
       get(){
         console.log(`get ${ key }:${ val }`);
+        Dep.target && dep.addDep(Dep.target)
         return val;
       },
       set(newVal){
         if(newVal !== val){
-          // 设置的新值是对象，需要递归对这个对象实现监听
-          observe(newVal)
           console.log(`set ${ key }:${ newVal }`)
+          // 设置的新值是对象，需要递归对这个对象实现监听
           val = newVal;
+          observe(newVal)
+          dep.notify();
         }
       }
     })
   }
+  // 数组响应式
 
   function observe(obj){
     if(typeof obj !== 'object' || obj == null){
       return;
+    }
+    if(Array.isArray(obj)){
+      // 覆盖原型
+      obj.__proto__ = arrayProto;
+      const keys = Object.keys(obj)
+      for(let i = 0; i < obj.length; i++){
+        observe(obj[i]);
+      }
+    }else{
+      Object.keys(obj).forEach(key =>{
+        defineReactive(obj ,key ,obj[key])
+      })
     }
     // 遍历对象key，实现监听
     new Observe(obj)
@@ -72,7 +99,6 @@
       this.obj = obj;
       if(Array.isArray(obj)){
         // 数组响应
-
       }else{
         // 对象响应处理
         this.walk(obj);
@@ -121,7 +147,8 @@
     }
     compileText(node){
       // console.log(RegExp.$1);
-      node.textContent = this.$vm[RegExp.$1];
+      // node.textContent = this.$vm[RegExp.$1];
+      this.update(node, RegExp.$1, 'text');
     }
     compileElement(node){
       const attrs = node.attributes;
@@ -133,13 +160,55 @@
           const dir = attrName.substring(2);
           this[dir] && this[dir](node, exp)
         }
+        // 事件
+        if(this.isEvent(attrName)){
+          const dir = attrName.substring(1)
+          this.eventHandler(node, exp, dir)
+        }
       })
     }
     isDir(name){
       return name.startsWith('v-')
     }
+    isEvent(dir){
+      return dir.indexOf('@') == 0
+    }
+    eventHandler(node, exp, dir){
+      const fn = this.$vm.$options.methods && this.$vm.$options.methods[exp]
+      node.addEventListener(dir, fn.bind(this.$vm));
+    }
     text(node, exp){
-      node.textContent = this.$vm[exp]
+      this.update(node, exp, 'text');
+      // node.textContent = this.$vm[exp]
+    }
+    update(node, exp, dir){
+      // init
+      const fn = this[dir + 'Updater'];
+      fn && fn(node, this.$vm[exp]);
+      // update
+      new Watcher(this.$vm, exp, val =>{
+        fn && fn(node, val);
+      })
+    }
+    textUpdater(node, val){
+      node.textContent = val;
+    }
+    html(node, exp){
+      this.update(node, exp, 'html');
+    }
+    htmlUpdater(node, val){
+      node.innerHTML = val;
+    }
+    model(node, exp){
+      this.update(node, exp, 'model')
+      // 事件监听
+      node.addEventListener('input', e => {
+        this.$vm[exp] = e.target.value;
+      })
+    }
+    modelUpdater(node, val){
+      // 表单元素赋值
+      node.value = val;
     }
   }
   // 负责dom更新
@@ -147,20 +216,46 @@
     constructor(vm, key, updater){
       this.vm = vm;
       this.key = key;
-      this.update = updater;
+      this.updater = updater;
+      // 触发一下get
+      Dep.target = this;
+      this.vm[this.key];
+      Dep.target = null;
     }
     update(){
       this.updater.call(this.vm, this.vm[this.key]);
     }
   }
+  // 保存watcher实例的依赖类
+  class Dep {
+    constructor(){
+      this.deps = [];
+    }
+    addDep(dep){
+      this.deps.push(dep);
+    }
+    notify(){
+      this.deps.forEach(dep =>{
+        dep.update();
+      })
+    }
+  }
   const app = new Vue({
     el: "#app",
     data: {
-      count : 1
+      arr:[1,2,3],
+      count : 1,
+      des:`<span style='backgound:red;'>999999999</span>`,
+    },
+    methods:{
+      onClick(){
+        this.count++
+      }
     }
   })
-  setInterval(()=>{
-    app.count++
-  },1000)
+  app.arr.push(4)
+  // setInterval(()=>{
+  //   app.count++
+  // },1000)
 </script>
 </html>
